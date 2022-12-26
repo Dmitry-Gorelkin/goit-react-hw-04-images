@@ -1,7 +1,7 @@
-import { Component } from 'react';
+import { useState, useEffect } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
 import { Button } from './Button/Button';
-import { Container } from './Container/Container';
+import { Container } from './Container/Container.styled';
 import { ImageGallery } from './ImageGallery/ImageGallery';
 import { Searchbar } from './Searchbar/Searchbar';
 import { fhechImage } from '../api';
@@ -9,84 +9,77 @@ import { Loader } from './Loader/Loader';
 
 const PER_PAGE = 12;
 
-export class App extends Component {
-  state = {
-    page: 1,
-    imageList: [],
-    query: null,
-    status: 'ideal',
-  };
+export const App = () => {
+  const [page, setPage] = useState(1);
+  const [imageList, setImageList] = useState([]);
+  const [query, setQuery] = useState(null);
+  const [status, setStatus] = useState('ideal');
 
-  handleQuery = query => {
-    if (query !== this.state.query) {
-      this.setState({ query, imageList: [], page: 1, status: 'ideal' });
+  const handleQuery = q => {
+    if (q !== query) {
+      setQuery(q);
+      setImageList([]);
+      setPage(1);
+      setStatus('ideal');
     }
   };
 
-  loadMore = () => {
-    this.setState(prevState => {
-      return { page: prevState.page + 1 };
-    });
-  };
+  const loadMore = () => setPage(prevState => prevState + 1);
 
-  componentDidUpdate(_, prevState) {
-    const { page, query } = this.state;
+  useEffect(() => {
+    const searchApi = async (query, page) => {
+      setStatus('laoding');
 
-    if (page !== prevState.page || query !== prevState.query) {
-      this.searchApi(query, page);
-    }
-  }
+      try {
+        const imageList = await fhechImage(query, page, PER_PAGE);
 
-  searchApi = async (query, page) => {
-    this.setState({ status: 'laoding' });
+        if (imageList.total === 0) {
+          toast(
+            `Ничего нет по запросу: ${query}, попробуйте сделать другой запрос.`
+          );
+          setStatus('ideal');
+          return;
+        }
 
-    try {
-      const imageList = await fhechImage(query, page, PER_PAGE);
+        const arrImageList = imageList.hits.map(e => {
+          const { id, webformatURL, tags, largeImageURL } = e;
+          return { id, webformatURL, tags, largeImageURL };
+        });
 
-      const arrImageList = imageList.hits.map(e => {
-        const { id, webformatURL, tags, largeImageURL } = e;
-        return { id, webformatURL, tags, largeImageURL };
-      });
+        setImageList(prevState => [...prevState, ...arrImageList]);
 
-      this.setState(prevState => {
-        return {
-          imageList: [...prevState.imageList, ...arrImageList],
-        };
-      });
+        page < Math.ceil(imageList.totalHits / PER_PAGE)
+          ? setStatus('loadMore')
+          : setStatus('ideal');
+      } catch {
+        toast.error(
+          `У нас не получилось взять данные о ${query}, попробуйте еще разочек 😇`
+        );
+        setStatus('ideal');
+      }
+    };
 
-      page < Math.ceil(imageList.totalHits / PER_PAGE)
-        ? this.setState({ status: 'loadMore' })
-        : this.setState({ status: 'ideal' });
-    } catch {
-      toast.error(
-        `У нас не получилось взять данные о ${query}, попробуйте еще разочек 😇`
-      );
-      this.setState({ status: 'ideal' });
-    }
-  };
+    if (query) searchApi(query, page);
+  }, [page, query]);
 
-  render() {
-    const { imageList, status } = this.state;
+  return (
+    <>
+      <Container>
+        <Searchbar onSubmitQuery={handleQuery} />
+        {imageList.length !== 0 && <ImageGallery images={imageList} />}
+        {status === 'laoding' && <Loader />}
+        {status === 'loadMore' && <Button onClick={loadMore} />}
+      </Container>
 
-    return (
-      <>
-        <Container>
-          <Searchbar onSubmitQuery={this.handleQuery} />
-          {imageList.length !== 0 && <ImageGallery images={imageList} />}
-          {status === 'laoding' && <Loader />}
-          {status === 'loadMore' && <Button onClick={this.loadMore} />}
-        </Container>
-
-        <Toaster
-          position="top-center"
-          toastOptions={{
-            duration: 3000,
-            error: {
-              duration: 3000,
-            },
-          }}
-        />
-      </>
-    );
-  }
-}
+      <Toaster
+        position="top-center"
+        toastOptions={{
+          duration: 2000,
+          error: {
+            duration: 2000,
+          },
+        }}
+      />
+    </>
+  );
+};

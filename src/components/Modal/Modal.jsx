@@ -10,7 +10,7 @@ const customStyles = {
     bottom: 0,
     backgroundColor: 'rgba(0, 0, 0, 0.8)',
     overflow: 'auto',
-    zIndex: '150',
+    zIndex: '100',
   },
   content: {
     position: 'absolute',
@@ -24,7 +24,7 @@ const customStyles = {
     padding: '0px',
     background: 'rgba(0, 0, 0, 0.8)',
     border: 'none',
-    zIndex: '200',
+    zIndex: '500',
   },
 };
 
@@ -33,6 +33,8 @@ export const Modal = ({ modalUrl, name, isOpenModal, onClose }) => {
     <ReactModal
       isOpen={isOpenModal}
       onRequestClose={onClose}
+      shouldCloseOnOverlayClick={false}
+      shouldCloseOnEsc={true}
       style={customStyles}
       ariaHideApp={false}
       htmlOpenClassName={'ReactModal__Html--open'}
